@@ -1,6 +1,6 @@
 {
   "name": "relive",
-  "version": "0.1.2-PREVIEW",
+  "version": "0.1.4-PREVIEW",
   "description": "Bot de música básico",
   "main": "index.js",
   "scripts": {
