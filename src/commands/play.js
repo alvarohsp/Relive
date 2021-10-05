@@ -2,7 +2,8 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { joinVoiceChannel,
     createAudioPlayer,
     NoSubscriberBehavior,
-    createAudioResource } = require('@discordjs/voice');
+    createAudioResource,
+    AudioPlayerStatus } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
 const ytSearch = require('yt-search');
 
@@ -17,29 +18,45 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
         await playMusic(interaction);
-        await interaction.editReply('Pronto!');
     }
 
 };
 
 async function playMusic(interaction) {
-    
+    const serverQueue = interaction.client.queue.get(interaction.guild.id);
     const voiceChannel = interaction.member.voice.channel;
     const url = interaction.options.getString('url');
 
-    if (!voiceChannel) return interaction.reply('Entre em um canal de voz');
-    if (!url) return interaction.reply('Tocar o que?');
+    if (!voiceChannel) return interaction.editReply('Entre em um canal de voz');
+    if (!url) return interaction.editReply('Tocar o que?');
 
     const connection = joinVoiceChannel({
         channelId: voiceChannel.id,
         guildId: voiceChannel.guild.id,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator,
     });
+    
 
     const player = createAudioPlayer({
         behaviors: {
             NoSubscriber: NoSubscriberBehavior.Stop,
         }
+    });
+
+    player.on('error', error => {
+        console.error('Error: ', error.message, 'with track', error.resource.metadata.title);
+    });
+
+    player.on(AudioPlayerStatus.Playing, () => {
+        interaction.channel.send({content: `Tocando agora: ${song.title}` });
+    });
+    
+    player.on(AudioPlayerStatus.Idle, () => {
+        interaction.channel.send({ content: 'Idle' });
+    });
+    
+    player.on(AudioPlayerStatus.Paused, () => {
+        interaction.channel.send({ content: 'Música pausada' });
     });
 
     let song;
@@ -59,7 +76,7 @@ async function playMusic(interaction) {
 
         const { videos } = await ytSearch(url);
 
-        if (!videos.length) return interaction.reply('Música não encontrada!');
+        if (!videos.length) return interaction.editReply('Música não encontrada!');
 
         const songInfo = await ytdl.getInfo(videos[0].url);
         song = {
@@ -70,15 +87,22 @@ async function playMusic(interaction) {
     }
 
     if (song.url) {
-        const stream = ytdl(song.url, { filter: 'audio', quality: 'highestaudio', liveBuffer: 0, highWaterMark: 32000 });
-        const resource = createAudioResource(stream);
+        const stream = ytdl(song.url, { filter: 'audio', quality: 'highestaudio', liveBuffer: 0, highWaterMark: 1 << 25 });
+        const resource = createAudioResource(stream, {
+            metadata: {
+                title: song.title
+            }
+        });
         const subscription = connection.subscribe(player);
         player.play(resource);
+        interaction.client.musicPlayer = player;
+        // const mensagem = interaction.channel.send({content: 'Tocando agora'});
+        await interaction.editReply(`Tocando agora: ${song.title}`);
+        const msg = await interaction.fetchReply();
+        msg.react('⏯️');
 
     } else {
-        interaction.reply('Música não encontrada!');
-        return;
+        return interaction.editReply('Música não encontrada!');
     }
 
 }
-        

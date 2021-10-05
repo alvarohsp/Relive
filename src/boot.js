@@ -11,6 +11,10 @@ const client = new Client({ intents:
 
     const eventFiles = fs.readdirSync('./src/events').filter(file => file.endsWith('.js'));
 
+    const queue = new Map();
+
+    client.queue = queue;
+
     console.log('\x1b[36m%s\x1b[0m', figlet.textSync('Relive', {
         font: 'Train',
     }));

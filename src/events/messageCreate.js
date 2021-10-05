@@ -17,17 +17,17 @@ module.exports = {
 
         if (!message.guild) return;
         if (!message.client.application?.owner) await message.client.application?.fetch();
+        if (!message.content.startsWith(prefix)) return;
 
         const commandBody = message.content.slice(prefix.length);
         const args = commandBody.split(' ');
         const command = args.shift().toLowerCase();
 
-        if (message.content.toLowerCase() === '!deploy' && message.author.id === message.client.application?.owner.id) {
+        if (command === 'deploy' && message.author.id === message.client.application?.owner.id) {
             deployCommands(message);
-
         }
 
-        if (command === 'play') {
+        if (command === 'playM') {
       
 
         const voiceChannel = message.member.voice.channel;

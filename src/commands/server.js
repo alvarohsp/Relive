@@ -11,7 +11,6 @@ module.exports = {
                 .addChoice('Server Name', 'name')
                 .addChoice('Total Members', 'memberCount')),
     async execute(interaction) {
-        console.log(interaction.guild);
 
         if (interaction.options.get('info').value === 'name') {
             await interaction.reply({ content: interaction.guild.name });
