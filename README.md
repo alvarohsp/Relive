@@ -20,15 +20,32 @@ Projeto de um bot musical para o Discord
 ## Melhorias de códigos a serem implementadas
 
 - [X] Command Handler
+- [X] Event Handler
 - [ ] Recriação do sistema de fila de música
 - [ ] Uso de Promises
 
 
-#### *ÁlvaroHSP 2021年10月*
+<br>
+
+## Como usar
+
+Para o funcionamento do bot é necessário criar um arquivo chamado `token.json` no diretório base.
+
+### Exemplo:
+`{`<br>
+`    "token": "SEU TOKEN AQUI"`<br>
+`}`<br>
 
 
+Instale as dependencias utilizando o comando `npm i` e para executar o bot use o comando `npm start`.
+
+<br>
 
 ## Ecossistema
 
 - NodeJS v16.9
 - Discord.JS v13.2
+
+<br><br>
+
+#### *ÁlvaroHSP 2021年10月*
