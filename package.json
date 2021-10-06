@@ -1,6 +1,6 @@
 {
   "name": "relive",
-  "version": "0.1.4-PREVIEW",
+  "version": "0.3.0-ALPHA",
   "description": "Bot de música básico",
   "main": "index.js",
   "scripts": {
@@ -16,13 +16,14 @@
     "@discordjs/rest": "^0.1.0-canary.0",
     "@discordjs/voice": "^0.6.0",
     "discord-api-types": "^0.23.1",
-    "discord.js": "^13.1.0",
+    "discord.js": "^13.2.0",
     "ffmpeg-static": "^4.4.0",
     "figlet": "^1.5.2",
     "libsodium-wrappers": "^0.7.9",
     "play-dl": "^1.0.6",
     "yt-search": "^2.10.1",
-    "ytdl-core": "^4.9.1"
+    "ytdl-core": "^4.9.1",
+    "ytpl": "^2.2.3"
   },
   "devDependencies": {
     "eslint": "^7.32.0"
