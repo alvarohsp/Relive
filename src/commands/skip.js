@@ -1,28 +1,24 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('pause')
-        .setDescription('Pausar música!'), 
+        .setName('skip')
+        .setDescription('Pular música!'), 
     async execute(interaction) {
         await interaction.deferReply();
-        await pauseMusic(interaction);
+        await skipMusic(interaction); 
     }
-
 };
 
-async function pauseMusic(interaction) {
+async function skipMusic(interaction) {
 
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
-
     if (!serverQueue) {
-        return await interaction.editReply('**Nada para pausar**');
+        return await interaction.editReply('**Nada para pular**');
     }
-    
     const player = serverQueue.player;
-    await interaction.editReply(`*Pausado por* ${interaction.user.username}`);
+    await interaction.editReply(`*Skipado por* ${interaction.user.username}`);
 
     const msg = await interaction.fetchReply();
-    msg.react('⏸️');
-    player.pause();
+    msg.react('⏭️');
+    player.stop();
 }

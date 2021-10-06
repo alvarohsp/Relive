@@ -6,13 +6,21 @@ module.exports = {
     async execute(interaction) {
         await interaction.deferReply();
         await resumeMusic(interaction);
-        return await interaction.editReply(`*Despausado por* ${interaction.user.username}`);
     }
 };
 
 async function resumeMusic(interaction) {
 
-    const player = interaction.client.musicPlayer;
+    const serverQueue = interaction.client.queue.get(interaction.guild.id);
 
+    if (!serverQueue) {
+        return await interaction.editReply('**Nada para continuar**');
+    }
+    const player = serverQueue.player;
+
+    await interaction.editReply(`*Despausado por* ${interaction.user.username}`);
+
+    const msg = await interaction.fetchReply();
+    msg.react('⏯️');
     player.unpause();
 }

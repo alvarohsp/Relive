@@ -3,7 +3,9 @@ const { joinVoiceChannel,
     createAudioPlayer,
     NoSubscriberBehavior,
     createAudioResource,
-    AudioPlayerStatus } = require('@discordjs/voice');
+    AudioPlayerStatus,
+    VoiceConnectionStatus,
+    entersState } = require('@discordjs/voice');
 const ytdl = require('ytdl-core');
 const ytSearch = require('yt-search');
 const ytpl = require('ytpl');
@@ -11,13 +13,13 @@ const ytpl = require('ytpl');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
-        .setDescription('Play youtube music!')
+        .setDescription('Reproduz uma música do youtube!')
         .addStringOption(option =>
             option.setName('url')
-                .setDescription('Song name of URL')
+                .setDescription('Pesquise por nome ou cole um link')
                 .setRequired(true)),
     async execute(interaction) {
-        // await interaction.deferReply();
+        await interaction.deferReply();
         await playMusic(interaction);
     }
 
@@ -38,30 +40,52 @@ async function createPlayer() {
     const player = createAudioPlayer({
         behaviors: {
             NoSubscriber: NoSubscriberBehavior.Stop,
+
         }
     });
 
     return player;
 }
 
-async function createPlayerStatus(interaction) {
+async function createPlayerStatus(client, guildId) {
 
-    const player = interaction.client.musicPlayer;
+    const serverQueue = client.queue.get(guildId);
+    const player = serverQueue.player;
+    const connection = serverQueue.connection;
 
     player.on('error', error => {
         console.error('Error: ', error.message, 'with track', error.resource.metadata.title);
+        playSong(serverQueue, client, guildId);
+
     });
 
     player.on(AudioPlayerStatus.Playing, () => {
-        interaction.channel.send({ content: 'Tocando agora' });
+        serverQueue.textChannel.send({ content: `Tocando agora: ${serverQueue.songs[0].title}` });
+        serverQueue.playing = true;
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
-        interaction.channel.send({ content: 'Idle' });
+        serverQueue.songs.shift();
+        serverQueue.playing = false;
+        client.queue.set(guildId, serverQueue);
+        playSong(serverQueue, client, guildId);
     });
 
     player.on(AudioPlayerStatus.Paused, () => {
-        interaction.channel.send({ content: 'Música pausada' });
+        serverQueue.textChannel.send({ content: 'Música pausada' });
+    });
+
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+        try {
+            await Promise.race([
+                entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+                entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+            ]);
+
+        } catch (error) {
+            connection.destroy();
+            client.queue.delete(guildId);
+        }
     });
 }
 
@@ -119,7 +143,6 @@ async function getMusic(url) {
         try {
             song = await ytGetPlaylistSongs(urlReplaced);
         } catch (err) {
-            console.log(err);
             try {
                 song = await ytGetSong(url);
 
@@ -136,7 +159,6 @@ async function getMusic(url) {
 
     return song;
 }
-
 
 async function ytUrlReplace(url) {
 
@@ -173,81 +195,68 @@ async function playMusic(interaction) {
     if (!serverQueue) {
         const queueConstruct = {
             connection: await createConnection(voiceChannel),
+            textChannel: await interaction.channel,
             player: await createPlayer(),
             playlistTitle: '',
-            songs: []
+            songs: [],
+            playing: false
         };
 
-        if (songs.length > 1) {
-            queueConstruct.songs.push(...songs);
-            interaction.channel.send({ content: `Foram adicionadas ${songs.length} músicas à playlist` });
+        addSongToQueue(queueConstruct, songs, interaction);
 
-        } else {
-            queueConstruct.songs.push(songs);
+        const updatedServerQueue = interaction.client.queue.get(interaction.guild.id);
 
-        }
-        interaction.client.queue.set(interaction.guild.id, queueConstruct);
+        await interaction.editReply(`*${interaction.user.username}* usou o comando Play`);
+        const msg = await interaction.fetchReply();
+        msg.react('⏯️');
+        createPlayerStatus(interaction.client, interaction.guild.id);
+        return playSong(updatedServerQueue, interaction.client, interaction.guild.id);
 
     }
 
 
-    const test = await interaction.client.queue.get(interaction.guild.id);
-    console.log(test);
-    await interaction.deferReply();
-    await interaction.editReply('...');
+    addSongToQueue(serverQueue, songs, interaction);
 
+    await interaction.editReply(`*${interaction.user.username}* usou o comando Play`);
+    const msg = await interaction.fetchReply();
+    msg.react('⏯️');
 
-    // let song;
+    console.log(serverQueue.songs);
 
-    // if (ytdl.validateURL(url)) {
-    //     console.log('youtubeLink');
+    if (serverQueue.playing === false) {
+        const updatedServerQueue = await interaction.client.queue.get(interaction.guild.id);
+        return playSong(updatedServerQueue, interaction.client, interaction.guild.id);
+    }
+}
 
-    //     const songInfo = await ytdl.getInfo(url);
-    //     song = {
-    //         title: songInfo.videoDetails.title,
-    //         url: songInfo.videoDetails.video_url,
-    //         chapters: songInfo.videoDetails.chapters
-    //     };
-    //     // console.log(songInfo);
+function addSongToQueue(queueConstruct, newSongs, interaction) {
 
-    // } else {
+    if (newSongs.length > 1) {
+        queueConstruct.songs.push(...newSongs);
+        queueConstruct.textChannel.send({ content: `Foram adicionadas ${newSongs.length} músicas à lista de reprodução` });
+    } else {
+        queueConstruct.songs.push(newSongs);
+        queueConstruct.textChannel.send({ content: `*${newSongs.title}* Foi adicionada à lista de reprodução` });
+    }
 
-    //     const { videos } = await ytSearch(url);
+    return interaction.client.queue.set(interaction.guild.id, queueConstruct);
+}
 
-    //     if (!videos.length) return interaction.editReply('Música não encontrada!');
+async function playSong(serverQueue) {
 
-    //     const songInfo = await ytdl.getInfo(videos[0].url);
-    //     song = {
-    //         title: songInfo.videoDetails.title,
-    //         url: songInfo.videoDetails.video_url,
-    //         chapters: songInfo.videoDetails.chapters
-    //     };
-    // }
+    const song = serverQueue.songs[0];
 
-    if (test.songs) {
-        const stream = ytdl(test.songs[0].url, { filter: 'audio', quality: 'highestaudio', liveBuffer: 0, highWaterMark: 1 << 25 });
+    if (song) {
+        const stream = ytdl(song.url, { filter: 'audio', liveBuffer: 0, highWaterMark: 1 << 25 });
         const resource = createAudioResource(stream, {
             metadata: {
-                title: test.songs[0].title
+                title: song.title
             }
         });
 
-        const player = test.player;
-        const subscription = test.connection.subscribe(player);
-        player.play(resource);
-
-        // interaction.client.queue.set(interaction.guild.id, queueConstruct);
-
-        // interaction.client.musicPlayer = player;
-
-            const mensagem = interaction.channel.send({content: `Tocando agora: ${test.songs[0].title}`});
-            // await interaction.editReply(`Tocando agora: ${test.title}`);
-            const msg = await interaction.fetchReply();
-            msg.react('⏯️');
-
-        // } else {
-        //     return interaction.editReply('Música não encontrada!');
-        // }
-
+        serverQueue.connection.subscribe(serverQueue.player);
+        serverQueue.player.play(resource);
+    } else {
+        serverQueue.player.stop();
     }
 }
