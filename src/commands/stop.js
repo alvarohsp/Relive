@@ -16,11 +16,11 @@ async function stopMusic(interaction) {
     if (!serverQueue) {
         return await interaction.editReply('**Nada para parar**');
     }
-
+    await serverQueue.player.stop();
     await serverQueue.connection.destroy();
     await interaction.editReply(`*Parado por* ${interaction.user.username}`);
 
-    interaction.client.queue.delete(interaction.guild.id);
+    await interaction.client.queue.delete(interaction.guild.id);
 
     const msg = await interaction.fetchReply();
     msg.react('🛑');

@@ -29,7 +29,7 @@ Projeto de um bot musical para o Discord
 
 ## Como usar
 
-Para o funcionamento do bot é necessário criar um arquivo chamado `token.json` no diretório base.
+Para o funcionamento do bot é necessário criar um arquivo chamado `token.json` no diretório base com a seguinte estrutura.
 
 ### Exemplo:
 `{`<br>
