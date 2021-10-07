@@ -17,7 +17,13 @@ module.exports = {
         .addStringOption(option =>
             option.setName('url')
                 .setDescription('Pesquise por nome ou cole um link')
-                .setRequired(true)),
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('tipo-da-busca')
+                .setRequired(false)
+                .setDescription('*Opcional* Escolha a preferência da busca')
+                .addChoice('Video', 'video')
+                .addChoice('Live Stream', 'live')),
     async execute(interaction) {
         await interaction.deferReply();
         await playMusic(interaction);
@@ -55,6 +61,7 @@ async function createPlayerStatus(client, guildId) {
 
     player.on('error', error => {
         console.error('Error: ', error.message, 'with track', error.resource.metadata.title);
+        console.log('ERROR ON PLAYING', error);
         playSong(serverQueue, client, guildId);
 
     });
@@ -113,8 +120,25 @@ async function songConstructor(songInfo) {
     return song;
 }
 
-async function ytGetSearchSong(url) {
-    const { videos } = await ytSearch(url);
+async function ytGetSeachLive(live) {
+
+    if (live.length) {
+
+        const songInfo = await ytdl.getInfo(live[0].url);
+        const song = await songConstructor(songInfo);
+
+        return song;
+    }
+}
+
+async function ytGetSearchSong(url, songType) {
+
+    const { videos, live } = await ytSearch(url);
+
+    if (songType === 'live') {
+        return ytGetSeachLive(live);
+
+    }
 
     if (!videos.length) return;
 
@@ -133,7 +157,7 @@ async function ytGetSong(url) {
 
 }
 
-async function getMusic(url) {
+async function getMusic(url, songType) {
 
     const linkTipo = await verificarLink(url);
     let song = undefined;
@@ -150,11 +174,8 @@ async function getMusic(url) {
                 console.log(err);
             }
         }
-
     } else {
-
-        song = await ytGetSearchSong(url);
-
+        song = await ytGetSearchSong(url, songType);
     }
 
     return song;
@@ -181,6 +202,23 @@ async function verificarLink(url) {
 
 }
 
+async function queueConstructor(interaction, voiceChannel) {
+
+    const queueConstruct = {
+        connection: await createConnection(voiceChannel),
+        client: interaction.client,
+        guildId: interaction.guild.id,
+        textChannel: await interaction.channel,
+        player: await createPlayer(),
+        playlistTitle: '',
+        songs: [],
+        playing: false
+    };
+
+    return queueConstruct;
+
+}
+
 
 async function playMusic(interaction) {
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
@@ -190,36 +228,22 @@ async function playMusic(interaction) {
     if (!voiceChannel) return interaction.editReply('Entre em um canal de voz');
     if (!url) return interaction.editReply('Tocar o que?');
 
-    const songs = await getMusic(url);
+    const musicType = interaction.options.getString('tipo-da-busca');
+    const songs = await getMusic(url, musicType);
 
     if (!serverQueue) {
-        const queueConstruct = {
-            connection: await createConnection(voiceChannel),
-            textChannel: await interaction.channel,
-            player: await createPlayer(),
-            playlistTitle: '',
-            songs: [],
-            playing: false
-        };
 
-        addSongToQueue(queueConstruct, songs, interaction);
+        const queueConstruct = await queueConstructor(interaction, voiceChannel);
 
+        await endOfPlayCommand(queueConstruct, songs, interaction);
+        
         const updatedServerQueue = interaction.client.queue.get(interaction.guild.id);
-
-        await interaction.editReply(`*${interaction.user.username}* usou o comando Play`);
-        const msg = await interaction.fetchReply();
-        msg.react('⏯️');
         createPlayerStatus(interaction.client, interaction.guild.id);
         return playSong(updatedServerQueue, interaction.client, interaction.guild.id);
 
     }
 
-
-    addSongToQueue(serverQueue, songs, interaction);
-
-    await interaction.editReply(`*${interaction.user.username}* usou o comando Play`);
-    const msg = await interaction.fetchReply();
-    msg.react('⏯️');
+    await endOfPlayCommand(serverQueue, songs, interaction);
 
     console.log(serverQueue.songs);
 
@@ -227,6 +251,16 @@ async function playMusic(interaction) {
         const updatedServerQueue = await interaction.client.queue.get(interaction.guild.id);
         return playSong(updatedServerQueue, interaction.client, interaction.guild.id);
     }
+}
+
+async function endOfPlayCommand(queueConstruct, songs, interaction) {
+
+    await addSongToQueue(queueConstruct, songs, interaction);
+
+    await interaction.editReply(`*${interaction.user.username}* usou o comando Play`);
+    const msg = await interaction.fetchReply();
+    msg.react('⏯️');
+
 }
 
 function addSongToQueue(queueConstruct, newSongs, interaction) {
@@ -247,16 +281,15 @@ async function playSong(serverQueue) {
     const song = serverQueue.songs[0];
 
     if (song) {
-        const stream = ytdl(song.url, { filter: 'audio', liveBuffer: 0, highWaterMark: 1 << 25 });
+        const stream = ytdl(song.url, { filter: 'audio', liveBuffer: 0, highWaterMark: 52000 });
         const resource = createAudioResource(stream, {
             metadata: {
                 title: song.title
             }
         });
-
         serverQueue.connection.subscribe(serverQueue.player);
         serverQueue.player.play(resource);
     } else {
-        serverQueue.player.stop();
+        serverQueue.client.queue.delete(serverQueue.guildId);
     }
 }
