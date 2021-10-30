@@ -19,10 +19,10 @@ Projeto de um bot musical para o Discord
 
 ## Melhorias de códigos a serem implementadas
 
-- [X] Command Handler
+- [X] SlashCommand Handler
+- [ ] Command Handler
 - [X] Event Handler
 - [ ] Recriação do sistema de fila de música
-- [ ] Uso de Promises
 
 
 <br>

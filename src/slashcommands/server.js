@@ -3,19 +3,19 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('server')
-        .setDescription('Replies Server informations!')
+        .setDescription('Retorna informações sobre o servidor!')
         .addStringOption(opt =>
             opt.setName('info')
                 .setRequired(true)
-                .setDescription('Server informations')
-                .addChoice('Server Name', 'name')
-                .addChoice('Total Members', 'memberCount')),
+                .setDescription('Informações do servidor')
+                .addChoice('Nome', 'name')
+                .addChoice('Total de membros', 'memberCount')),
     async execute(interaction) {
 
         if (interaction.options.get('info').value === 'name') {
             await interaction.reply({ content: interaction.guild.name });
 
         } else if (interaction.options.get('info').value === 'memberCount')
-            await interaction.reply({ content: `${interaction.guild.memberCount} total members` });
+            await interaction.reply({ content: `${interaction.guild.memberCount} membros` });
     }
 };

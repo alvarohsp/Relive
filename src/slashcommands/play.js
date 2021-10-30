@@ -9,6 +9,9 @@ const { joinVoiceChannel,
 const ytdl = require('ytdl-core');
 const ytSearch = require('yt-search');
 const ytpl = require('ytpl');
+// const fs = require('fs');
+
+const embedBuilder = require('../util/embed');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -62,13 +65,21 @@ async function createPlayerStatus(client, guildId) {
     player.on('error', error => {
         console.error('Error: ', error.message, 'with track', error.resource.metadata.title);
         console.log('ERROR ON PLAYING', error);
-        playSong(serverQueue, client, guildId);
 
     });
 
     player.on(AudioPlayerStatus.Playing, () => {
-        serverQueue.textChannel.send({ content: `Tocando agora: ${serverQueue.songs[0].title}` });
+        // serverQueue.textChannel.send({ content: `Tocando agora: ${serverQueue.songs[0].title}` });
+        const emb = embedBuilder.messageEmbed.nowPlaying(serverQueue.hexColor,
+            'Tocando agora',
+            serverQueue.songs[0].thumbnails[serverQueue.songs[0].thumbnails.length - 1].url,
+            `*${serverQueue.songs[0].title}*`);
+
+        serverQueue.textChannel.send({ embeds: [emb] });
+
         serverQueue.playing = true;
+        serverQueue.buffering = false;
+        client.queue.set(guildId, serverQueue);
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
@@ -83,15 +94,29 @@ async function createPlayerStatus(client, guildId) {
     });
 
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
+        console.log('Connection lost');
         try {
             await Promise.race([
-                entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-                entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+                entersState(connection, VoiceConnectionStatus.Signalling, 2_000),
+                entersState(connection, VoiceConnectionStatus.Connecting, 2_000),
             ]);
 
         } catch (error) {
-            connection.destroy();
-            client.queue.delete(guildId);
+            console.log('DISCONECTED', error);
+            try {
+                serverQueue.connection.destroy();
+            } catch (err) {
+                console.log('ERROR ON DISCONECT');
+            }
+        }
+    });
+
+    connection.on(VoiceConnectionStatus.Destroyed, async () => {
+        console.log('Connection destroyed');
+        try {
+            await client.queue.delete(guildId);
+        } catch (error) {
+            console.log(error);
         }
     });
 }
@@ -105,7 +130,13 @@ async function ytGetPlaylistSongs(url) {
 
     playlist.items.forEach((element) => {
 
-        songs.push({ title: element.title, url: element.shortUrl });
+        // songs.push({ title: element.title, url: element.shortUrl });
+        songs.push({
+            title: element.title,
+            url: element.shortUrl,
+            thumbnails: element.thumbnails,
+
+        });
 
     });
 
@@ -115,7 +146,11 @@ async function ytGetPlaylistSongs(url) {
 async function songConstructor(songInfo) {
     const song = {
         title: songInfo.videoDetails.title,
-        url: songInfo.videoDetails.video_url
+        author: songInfo.videoDetails.author.name,
+        url: songInfo.videoDetails.video_url,
+        live: songInfo.videoDetails.isLiveContent,
+        chapters: songInfo.videoDetails.chapters,
+        thumbnails: songInfo.videoDetails.thumbnails
     };
     return song;
 }
@@ -124,7 +159,7 @@ async function ytGetSeachLive(live) {
 
     if (live.length) {
 
-        const songInfo = await ytdl.getInfo(live[0].url);
+        const songInfo = await ytdl.getBasicInfo(live[0].url);
         const song = await songConstructor(songInfo);
 
         return song;
@@ -133,24 +168,34 @@ async function ytGetSeachLive(live) {
 
 async function ytGetSearchSong(url, songType) {
 
-    const { videos, live } = await ytSearch(url);
+    const { videos, live } = await ytSearch({ query: url, pages: 1 });
 
     if (songType === 'live') {
         return ytGetSeachLive(live);
-
     }
 
     if (!videos.length) return;
 
-    const songInfo = await ytdl.getInfo(videos[0].url);
+    const songInfo = await ytdl.getBasicInfo(videos[0].url);
     const song = await songConstructor(songInfo);
+
+    return song;
+}
+
+async function ytGetSearchSongPre(songTitle, songType) {
+
+    const song = {
+        title: songTitle,
+        url: songTitle,
+        songType: songType
+    };
 
     return song;
 }
 
 async function ytGetSong(url) {
 
-    const songInfo = await ytdl.getInfo(url);
+    const songInfo = await ytdl.getBasicInfo(url);
     const song = await songConstructor(songInfo);
 
     return song;
@@ -175,12 +220,19 @@ async function getMusic(url, songType) {
             }
         }
     } else {
-        song = await ytGetSearchSong(url, songType);
+        song = await ytGetSearchSongPre(url, songType);
     }
 
     return song;
 }
 
+/**
+ * Função dedicada a ajustar a string de URL de forma que
+ * o bot consiga buscar o link corretamente.
+ * 
+ * @param {string} url 
+ * @returns {string}
+ */
 async function ytUrlReplace(url) {
 
     let newUrl;
@@ -193,6 +245,15 @@ async function ytUrlReplace(url) {
     return newUrl;
 }
 
+/**
+ * Função dedicada a verificar qual o tipo da entrada do usuário.
+ * 
+ * Recebe a entrada do usuário {string} como parametro e retorna 0 se a entrada informada for
+ * um link do youtube válido, e retorna 1 caso contrário
+ * 
+ * @param {string} url 
+ * @returns {number}
+ */
 async function verificarLink(url) {
 
     if (ytdl.validateURL(url)) {
@@ -201,6 +262,16 @@ async function verificarLink(url) {
     return 1;
 
 }
+
+/**
+ * Função destinada a construir a queue.
+ * 
+ * Recebe a interação e o canal de voz como parametro e retorna a queue construida.
+ * 
+ * @param {interaction} interaction 
+ * @param {voiceChannel} voiceChannel 
+ * @returns queueConstruct
+ */
 
 async function queueConstructor(interaction, voiceChannel) {
 
@@ -212,13 +283,14 @@ async function queueConstructor(interaction, voiceChannel) {
         player: await createPlayer(),
         playlistTitle: '',
         songs: [],
-        playing: false
+        playing: true,
+        buffering: false,
+        hexColor: interaction.guild.me.displayHexColor
     };
 
     return queueConstruct;
 
 }
-
 
 async function playMusic(interaction) {
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
@@ -236,16 +308,15 @@ async function playMusic(interaction) {
         const queueConstruct = await queueConstructor(interaction, voiceChannel);
 
         await endOfPlayCommand(queueConstruct, songs, interaction);
-        
+
         const updatedServerQueue = interaction.client.queue.get(interaction.guild.id);
         createPlayerStatus(interaction.client, interaction.guild.id);
+
         return playSong(updatedServerQueue, interaction.client, interaction.guild.id);
 
     }
 
     await endOfPlayCommand(serverQueue, songs, interaction);
-
-    console.log(serverQueue.songs);
 
     if (serverQueue.playing === false) {
         const updatedServerQueue = await interaction.client.queue.get(interaction.guild.id);
@@ -256,39 +327,118 @@ async function playMusic(interaction) {
 async function endOfPlayCommand(queueConstruct, songs, interaction) {
 
     await addSongToQueue(queueConstruct, songs, interaction);
-
-    await interaction.editReply(`*${interaction.user.username}* usou o comando Play`);
-    const msg = await interaction.fetchReply();
-    msg.react('⏯️');
-
+    await interaction.editReply('⏯️ ``/play``');
 }
 
 function addSongToQueue(queueConstruct, newSongs, interaction) {
 
     if (newSongs.length > 1) {
         queueConstruct.songs.push(...newSongs);
-        queueConstruct.textChannel.send({ content: `Foram adicionadas ${newSongs.length} músicas à lista de reprodução` });
+        const emb = embedBuilder.messageEmbed.songAdd(queueConstruct.hexColor,
+            `Foram adicionadas **${newSongs.length}** músicas à lista de reprodução`,
+            interaction.user.username);
+
+        queueConstruct.textChannel.send({ embeds: [emb] });
+
     } else {
         queueConstruct.songs.push(newSongs);
-        queueConstruct.textChannel.send({ content: `*${newSongs.title}* Foi adicionada à lista de reprodução` });
+        const emb = embedBuilder.messageEmbed.songAdd(queueConstruct.hexColor,
+            `**${newSongs.title}**\nfoi adicionada à lista de reprodução`,
+            interaction.user.username);
+
+        queueConstruct.textChannel.send({ embeds: [emb] });
+
     }
 
+    // console.log(queueConstruct.songs);
     return interaction.client.queue.set(interaction.guild.id, queueConstruct);
 }
 
-async function playSong(serverQueue) {
+async function playSong(serverQueue, client, guildId) {
+    serverQueue.buffering = true;
 
-    const song = serverQueue.songs[0];
+    let song = serverQueue.songs[0];
 
     if (song) {
-        const stream = ytdl(song.url, { filter: 'audio', liveBuffer: 0, highWaterMark: 52000 });
-        const resource = createAudioResource(stream, {
-            metadata: {
-                title: song.title
-            }
-        });
-        serverQueue.connection.subscribe(serverQueue.player);
-        serverQueue.player.play(resource);
+
+        if (song.title === song.url) {
+
+            song = await ytGetSearchSong(song.url, song.songType);
+
+            serverQueue.songs[0] = song;
+            client.queue.set(guildId, serverQueue);
+
+        }
+        let songFilter = 'audioonly';
+        let songQuality = 'highestaudio';
+
+        if (song.live === true) {
+            songFilter = 'audio';
+            songQuality = 'lowestaudio';
+        }
+
+        // console.log(song);
+        // console.log(songFilter);
+
+        const stream = ytdl(song.url, { filter: songFilter, quality: songQuality, liveBuffer: 0, highWaterMark: 1 << 25, begin: '0s' });
+        // .once('close', () => {
+        //     console.log('ON CLOSE');
+        // })
+        // .once('data', () => {
+        //     console.log('ON DATA');
+        // })
+        // .once('end', () => {
+        //     console.log('ONCE END');
+        // })
+        // .once('error', (qwe) => {
+        //     console.log('ONCE ERROR', qwe);
+        // })
+        // .once('pause', () => {
+        //     console.log('ON PAUSE');
+        // })
+        // .once('readable', () => {
+        //     console.log('ON READABLE');
+        // })
+        // .once('resume', () => {
+        //     console.log('ON RESUME');
+        // });
+
+        // const stream = ytdl(song.url, { filter: 'audioonly', quality: 'highestaudio', highWaterMark: 1 << 25, begin: '0s' })
+        // .pipe(fs.createWriteStream('./stream.mp3'));
+
+        const bufferingMsg = serverQueue.textChannel.send('*Processando...*');
+
+        // stream.on('finish', () => {
+
+        //     const streamFile = fs.createReadStream('./stream.mp3');
+
+        //     const resource = createAudioResource(streamFile, {
+        //         metadata: {
+        //             title: song.title
+        //         }
+        //     });
+        //     serverQueue.connection.subscribe(serverQueue.player);
+        //     serverQueue.player.play(resource);
+
+        // });
+
+        // stream.on('error', (err) => {
+        //     console.log('ytdl error: ', err);
+        // });
+
+        setTimeout(() => {
+
+            const resource = createAudioResource(stream, {
+                metadata: {
+                    title: song.title
+                }
+            });
+            serverQueue.connection.subscribe(serverQueue.player);
+            serverQueue.player.play(resource);
+            bufferingMsg.then((msg) => msg.delete());
+
+        }, 3000);
+
     } else {
         serverQueue.client.queue.delete(serverQueue.guildId);
     }

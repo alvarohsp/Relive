@@ -20,9 +20,10 @@ async function pauseMusic(interaction) {
     }
     
     const player = serverQueue.player;
-    await interaction.editReply(`*Pausado por* ${interaction.user.username}`);
+    // await interaction.editReply(`*Pausado por* ${interaction.user.username}`);
+    await interaction.editReply('⏸️ ``/pause``');
 
-    const msg = await interaction.fetchReply();
-    msg.react('⏸️');
+    // const msg = await interaction.fetchReply();
+    // msg.react('⏸️');
     player.pause();
 }

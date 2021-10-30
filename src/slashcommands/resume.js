@@ -18,9 +18,10 @@ async function resumeMusic(interaction) {
     }
     const player = serverQueue.player;
 
-    await interaction.editReply(`*Despausado por* ${interaction.user.username}`);
+    // await interaction.editReply(`*Despausado por* ${interaction.user.username}`);
+    await interaction.editReply('⏯️ ``/resume``');
 
-    const msg = await interaction.fetchReply();
-    msg.react('⏯️');
+    // const msg = await interaction.fetchReply();
+    // msg.react('⏯️');
     player.unpause();
 }

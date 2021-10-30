@@ -23,12 +23,12 @@ module.exports = {
 function deployCommands(message) {
 
     message.client.commands = new Collection();
-    const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
+    const commandFiles = fs.readdirSync('./src/slashcommands').filter(file => file.endsWith('.js'));
     console.log(`Command Files: ${commandFiles}`);
 
 
     for (const file of commandFiles) {
-        const command = require(`../commands/${file}`);
+        const command = require(`../slashcommands/${file}`);
 
         message.guild.commands.create(
             command.data);
