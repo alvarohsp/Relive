@@ -10,8 +10,9 @@ const ytdl = require('ytdl-core');
 const ytSearch = require('yt-search');
 const ytpl = require('ytpl');
 // const fs = require('fs');
-
 const embedBuilder = require('../util/embed');
+// eslint-disable-next-line no-unused-vars
+const { Interaction, VoiceChannel } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -61,6 +62,7 @@ async function createPlayerStatus(client, guildId) {
     const serverQueue = client.queue.get(guildId);
     const player = serverQueue.player;
     const connection = serverQueue.connection;
+    const connClient = client;
 
     player.on('error', error => {
         console.error('Error: ', error.message, 'with track', error.resource.metadata.title);
@@ -79,13 +81,13 @@ async function createPlayerStatus(client, guildId) {
 
         serverQueue.playing = true;
         serverQueue.buffering = false;
-        client.queue.set(guildId, serverQueue);
+        connClient.queue.set(guildId, serverQueue);
     });
 
     player.on(AudioPlayerStatus.Idle, () => {
         serverQueue.songs.shift();
         serverQueue.playing = false;
-        client.queue.set(guildId, serverQueue);
+        connClient.queue.set(guildId, serverQueue);
         playSong(serverQueue, client, guildId);
     });
 
@@ -114,7 +116,7 @@ async function createPlayerStatus(client, guildId) {
     connection.on(VoiceConnectionStatus.Destroyed, async () => {
         console.log('Connection destroyed');
         try {
-            await client.queue.delete(guildId);
+            connClient.queue.delete(guildId);
         } catch (error) {
             console.log(error);
         }
@@ -268,11 +270,10 @@ async function verificarLink(url) {
  * 
  * Recebe a interação e o canal de voz como parametro e retorna a queue construida.
  * 
- * @param {interaction} interaction 
- * @param {voiceChannel} voiceChannel 
+ * @param {Interaction} interaction 
+ * @param {VoiceChannel} voiceChannel 
  * @returns queueConstruct
  */
-
 async function queueConstructor(interaction, voiceChannel) {
 
     const queueConstruct = {
@@ -350,14 +351,15 @@ function addSongToQueue(queueConstruct, newSongs, interaction) {
 
     }
 
-    // console.log(queueConstruct.songs);
     return interaction.client.queue.set(interaction.guild.id, queueConstruct);
 }
 
 async function playSong(serverQueue, client, guildId) {
+
     serverQueue.buffering = true;
 
     let song = serverQueue.songs[0];
+
 
     if (song) {
 
@@ -377,67 +379,26 @@ async function playSong(serverQueue, client, guildId) {
             songQuality = 'lowestaudio';
         }
 
-        // console.log(song);
-        // console.log(songFilter);
-
-        const stream = ytdl(song.url, { filter: songFilter, quality: songQuality, liveBuffer: 0, highWaterMark: 1 << 25, begin: '0s' });
-        // .once('close', () => {
-        //     console.log('ON CLOSE');
-        // })
-        // .once('data', () => {
-        //     console.log('ON DATA');
-        // })
-        // .once('end', () => {
-        //     console.log('ONCE END');
-        // })
-        // .once('error', (qwe) => {
-        //     console.log('ONCE ERROR', qwe);
-        // })
-        // .once('pause', () => {
-        //     console.log('ON PAUSE');
-        // })
-        // .once('readable', () => {
-        //     console.log('ON READABLE');
-        // })
-        // .once('resume', () => {
-        //     console.log('ON RESUME');
-        // });
-
-        // const stream = ytdl(song.url, { filter: 'audioonly', quality: 'highestaudio', highWaterMark: 1 << 25, begin: '0s' })
-        // .pipe(fs.createWriteStream('./stream.mp3'));
+        const stream = ytdl(song.url, { filter: songFilter, quality: songQuality, liveBuffer: 0, highWaterMark: 1 << 25, begin: '0s' })
+        .once('error', (err) => {
+            console.log('ytdl ERROR', err);
+        });
 
         const bufferingMsg = serverQueue.textChannel.send('*Processando...*');
 
-        // stream.on('finish', () => {
 
-        //     const streamFile = fs.createReadStream('./stream.mp3');
-
-        //     const resource = createAudioResource(streamFile, {
-        //         metadata: {
-        //             title: song.title
-        //         }
-        //     });
-        //     serverQueue.connection.subscribe(serverQueue.player);
-        //     serverQueue.player.play(resource);
-
-        // });
-
-        // stream.on('error', (err) => {
-        //     console.log('ytdl error: ', err);
-        // });
+        serverQueue.connection.subscribe(serverQueue.player);
+        const resource = createAudioResource(stream, {
+            metadata: {
+                title: song.title
+            }
+        });
 
         setTimeout(() => {
-
-            const resource = createAudioResource(stream, {
-                metadata: {
-                    title: song.title
-                }
-            });
-            serverQueue.connection.subscribe(serverQueue.player);
             serverQueue.player.play(resource);
             bufferingMsg.then((msg) => msg.delete());
-
-        }, 3000);
+            
+        }, 3200);
 
     } else {
         serverQueue.client.queue.delete(serverQueue.guildId);
