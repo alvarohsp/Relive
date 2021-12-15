@@ -19,10 +19,10 @@ Projeto de um bot musical para o Discord
 
 ## Melhorias de códigos a serem implementadas
 
-- [X] Command Handler
+- [X] SlashCommand Handler
+- [ ] Command Handler
 - [X] Event Handler
 - [ ] Recriação do sistema de fila de música
-- [ ] Uso de Promises
 
 
 <br>
@@ -43,9 +43,9 @@ Instale as dependencias utilizando o comando `npm i` e para executar o bot use o
 
 ## Ecossistema
 
-- NodeJS v16.9
-- Discord.JS v13.2
+- Node.js v16.13.1 (LTS)
+- Discord.JS v13.3.1
 
 <br><br>
 
-#### *ÁlvaroHSP 2021年10月*
+#### *ÁlvaroHSP 2021年12月*

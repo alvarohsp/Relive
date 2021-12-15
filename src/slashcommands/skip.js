@@ -15,10 +15,16 @@ async function skipMusic(interaction) {
     if (!serverQueue) {
         return await interaction.editReply('**Nada para pular**');
     }
-    const player = serverQueue.player;
-    await interaction.editReply(`*Skipado por* ${interaction.user.username}`);
 
-    const msg = await interaction.fetchReply();
-    msg.react('⏭️');
+    if (serverQueue.buffering === true) {
+        return await interaction.editReply('**Aguarde!**');
+    }
+
+    const player = serverQueue.player;
+    // await interaction.editReply(`*Skipado por* ${interaction.user.username}`);
+    await interaction.editReply('⏭️ ``/skip``');
+
+    // const msg = await interaction.fetchReply();
+    // msg.react('⏭️');
     player.stop();
 }

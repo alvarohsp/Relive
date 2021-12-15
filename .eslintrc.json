@@ -13,11 +13,22 @@
         "prefer-const": "error",
         "no-var": "error",
         "no-multi-spaces": "error",
-		"no-multiple-empty-lines": ["error", { "max": 2, "maxEOF": 1, "maxBOF": 0 }],
+		"no-multiple-empty-lines": ["error", { "max": 3, "maxEOF": 1, "maxBOF": 0 }],
         "no-empty-function": "error",
 		"no-floating-decimal": "error",
 		"no-inline-comments": "error",
-		"no-lonely-if": "error"
-
+		"no-lonely-if": "error",
+		"max-lines": ["warn", {"skipBlankLines": true, "skipComments": true, "max": 1000}],
+		"max-lines-per-function": ["warn", 35],
+		"max-statements": ["warn", 20],
+		"eqeqeq": "warn",
+		"default-case": "error",
+		"max-depth": ["warn", 4],
+		"max-params": ["warn", 3],
+		"no-redeclare": "warn",
+		"prefer-template": "warn",
+		"no-useless-return": "error",
+		"no-cond-assign": "error",
+		"no-const-assign": "error"
 	}
 }

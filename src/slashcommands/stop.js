@@ -16,12 +16,18 @@ async function stopMusic(interaction) {
     if (!serverQueue) {
         return await interaction.editReply('**Nada para parar**');
     }
+
+    if (serverQueue.buffering === true) {
+        return await interaction.editReply('**Aguarde!**');
+    }
+
     await serverQueue.player.stop();
     await serverQueue.connection.destroy();
-    await interaction.editReply(`*Parado por* ${interaction.user.username}`);
+    // await interaction.editReply(`*Parado por* ${interaction.user.username}`);
+    await interaction.editReply('🛑 ``/stop``');
 
     await interaction.client.queue.delete(interaction.guild.id);
 
-    const msg = await interaction.fetchReply();
-    msg.react('🛑');
+    // const msg = await interaction.fetchReply();
+    // msg.react('🛑');
 }

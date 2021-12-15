@@ -23,8 +23,9 @@ async function clearMusic(interaction) {
 
     interaction.client.queue.set(interaction.guild.id, serverQueue);
 
-    await interaction.editReply(`*Lista limpa por* ${interaction.user.username}`);
+    // await interaction.editReply(`*Lista limpa por* ${interaction.user.username}`);
+    await interaction.editReply('🧹 ``/clear``');
 
-    const msg = await interaction.fetchReply();
-    msg.react('🧹');
+    // const msg = await interaction.fetchReply();
+    // msg.react('🧹');
 }
