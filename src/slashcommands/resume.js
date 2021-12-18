@@ -1,4 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
+// eslint-disable-next-line no-unused-vars
+const ServerQueue = require('../../entity/ServerQueue');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resume')
@@ -11,17 +13,18 @@ module.exports = {
 
 async function resumeMusic(interaction) {
 
+    /** @type {ServerQueue} */
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
 
     if (!serverQueue) {
         return await interaction.editReply('**Nada para continuar**');
     }
-    const player = serverQueue.player;
+    serverQueue.musicSystem.resume();
 
     // await interaction.editReply(`*Despausado por* ${interaction.user.username}`);
     await interaction.editReply('⏯️ ``/resume``');
 
     // const msg = await interaction.fetchReply();
     // msg.react('⏯️');
-    player.unpause();
+    // player.unpause();
 }

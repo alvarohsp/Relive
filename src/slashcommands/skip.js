@@ -1,4 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
+// eslint-disable-next-line no-unused-vars
+const ServerQueue = require('../../entity/ServerQueue');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('skip')
@@ -10,21 +12,23 @@ module.exports = {
 };
 
 async function skipMusic(interaction) {
-
+    
+    /** @type {ServerQueue} */
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
+
     if (!serverQueue) {
         return await interaction.editReply('**Nada para pular**');
     }
 
-    if (serverQueue.buffering === true) {
+    if (serverQueue.getBuffering() === true) {
         return await interaction.editReply('**Aguarde!**');
     }
 
-    const player = serverQueue.player;
+    serverQueue.musicSystem.skip();
     // await interaction.editReply(`*Skipado por* ${interaction.user.username}`);
     await interaction.editReply('⏭️ ``/skip``');
 
     // const msg = await interaction.fetchReply();
     // msg.react('⏭️');
-    player.stop();
+    // player.stop();
 }

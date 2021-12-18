@@ -1,6 +1,6 @@
 {
   "name": "relive",
-  "version": "0.4.6-ALPHA",
+  "version": "0.5.0-SNAPSHOT",
   "description": "Bot de música básico",
   "main": "index.js",
   "scripts": {
@@ -23,7 +23,7 @@
     "libsodium-wrappers": "^0.7.9",
     "youtube-sr": "^4.1.8",
     "yt-search": "^2.10.1",
-    "ytdl-core": "^4.9.1",
+    "ytdl-core": "^4.9.2",
     "ytpl": "^2.2.3"
   },
   "devDependencies": {
