@@ -1,4 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
+// eslint-disable-next-line no-unused-vars
+const ServerQueue = require('../../entity/ServerQueue');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stop')
@@ -11,18 +13,22 @@ module.exports = {
 
 async function stopMusic(interaction) {
 
+    /** @type {ServerQueue} */
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
 
     if (!serverQueue) {
         return await interaction.editReply('**Nada para parar**');
     }
 
-    if (serverQueue.buffering === true) {
+    if (serverQueue.getBuffering() === true) {
         return await interaction.editReply('**Aguarde!**');
     }
 
-    await serverQueue.player.stop();
-    await serverQueue.connection.destroy();
+    // await serverQueue.player.stop();
+    // await serverQueue.connection.destroy();
+
+    serverQueue.musicSystem.stop();
+    
     // await interaction.editReply(`*Parado por* ${interaction.user.username}`);
     await interaction.editReply('🛑 ``/stop``');
 

@@ -1,4 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
+// eslint-disable-next-line no-unused-vars
+const ServerQueue = require('../../entity/ServerQueue');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('clear')
@@ -11,6 +13,7 @@ module.exports = {
 
 async function clearMusic(interaction) {
 
+    /** @type {ServerQueue} */
     const serverQueue = interaction.client.queue.get(interaction.guild.id);
     
 
@@ -18,8 +21,8 @@ async function clearMusic(interaction) {
         return await interaction.editReply('**Nada para limpar**');
     }
 
-    serverQueue.songs = [];
-    await serverQueue.player.stop();
+    serverQueue.musicSystem.clear();
+    // await serverQueue.player.stop();
 
     interaction.client.queue.set(interaction.guild.id, serverQueue);
 
