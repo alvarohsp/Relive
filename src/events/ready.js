@@ -31,11 +31,5 @@ async function deployCommandsAuto(client) {
         }
     }
 
-    // for (const file of commandFiles) {
-    //     const command = await require(`../slashcommands/${file}`); 
-    //     client.commands.set(command.data.name, command);
-
-    // }
-
     console.log('Deployed!');
 }

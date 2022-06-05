@@ -3,17 +3,19 @@ module.exports = {
 
     messageEmbed: {
 
-        songAdd: (color, title, footer) => {
+        songAdd: (...params) => {
+            const [color, title, footer] = params;
             const embed = new MessageEmbed()
             .setColor(color)
             .setTitle(title)
             .setTimestamp()
-            .setFooter(footer);
+            .setFooter({text: footer});
 
             return embed;
         },
 
-        nowPlaying: (color, title, thumb, description) => {
+        nowPlaying: (...params) => {
+            const [color, title, thumb, description] = params;
             const embed = new MessageEmbed()
             .setColor(color)
             .setTitle(title)
