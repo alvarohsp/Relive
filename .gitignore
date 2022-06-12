@@ -5,4 +5,6 @@ art/
 .VSCodeCounter
 .scannerwork
 reports/
+.vscode/
 sonar.ps1
+target/
