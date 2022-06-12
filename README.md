@@ -8,21 +8,22 @@ Projeto de um bot musical para o Discord
 - [x] Reprodutor de música do Youtube
 - [x] Suporte a reprodução de música via busca por nome
 - [x] Suporte a link de playlist do youtube
+- [X] Suporte a Loop de músicas/playlists
 
 ## Recursos a serem implementados
 
+- [ ] Reprodutor de música do Spotify
+- [ ] Seletor de idioma
+- [ ] Cache local de músicas
 - [ ] Suporte a seleção de capítulos
-- [ ] Banco de dados (MongoDB)
+- [ ] Banco de dados
 - [ ] Suporte a criação de playlists locais
-- [ ] Suporte a Loop de músicas/playlists
 - [ ] Suporte a Shuffle de playlists
 
 ## Melhorias de códigos a serem implementadas
 
-- [X] SlashCommand Handler
 - [ ] Command Handler
-- [X] Event Handler
-- [ ] Recriação do sistema de fila de música
+
 
 
 <br>
@@ -44,8 +45,8 @@ Instale as dependencias utilizando o comando `npm i` e para executar o bot use o
 ## Ecossistema
 
 - Node.js v16.13.1 (LTS)
-- Discord.JS v13.3.1
+- Discord.JS v13.8.0
 
 <br><br>
 
-#### *ÁlvaroHSP 2021年12月*
+#### *ÁlvaroHSP 2022年6月*

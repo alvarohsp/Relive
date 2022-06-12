@@ -45,11 +45,7 @@ module.exports = class ServerQueue {
 		/** @type {AudioPlayer} */
 		let _player;
 
-		let _playlist = {
-			songs: [],
-			playlistIndex: 1,
-			playlistTitle: '',
-		};
+		let _playlist = new Playlist();
 
 		/** @type {boolean} */
 		let _playing;
@@ -147,11 +143,23 @@ module.exports = class ServerQueue {
 
 			_player.on(AudioPlayerStatus.Idle, () => {
 				_playing = false;
-				if (_playlist.playerIndex > _playlist.songs.length) {
-					_playlist.songs = [];
-					_playlist.playlistIndex = 1;
+				const { loopEnabled, loopFullPlaylist } = _playlist.getLoopStatus();
+				console.log('#########TESTE', loopEnabled, loopFullPlaylist);
+
+				if (_playlist.getPlaylistIndex() >= _playlist.getPlaylistLength()) {
+					if (loopEnabled && loopFullPlaylist) {
+						_playlist.setPlaylistIndex(1);
+						this.musicSystem.play();
+					} else if (loopEnabled && !loopFullPlaylist) {
+						_playlist.incrementLoopCount();
+						this.musicSystem.play();
+					} else {
+						_playlist.clearPlaylist(1);
+					}
+				} else if (loopEnabled && !loopFullPlaylist) {
+					this.musicSystem.play();
 				} else {
-					_playlist.playlistIndex++;
+					_playlist.incrementPlayerIndex();
 					this.musicSystem.play();
 				}
 			});
@@ -182,11 +190,6 @@ module.exports = class ServerQueue {
 
 			_connection.on(VoiceConnectionStatus.Destroyed, async () => {
 				console.log('Connection destroyed');
-				// try {
-				//     connClient.queue.delete(guildId);
-				// } catch (error) {
-				//     console.log(error);
-				// }
 			});
 		};
 
@@ -196,16 +199,16 @@ module.exports = class ServerQueue {
 					return;
 				}
 
-				let song = _playlist.songs[_playlist.playlistIndex - 1];
+				let song = _playlist.getSongs()[_playlist.getPlaylistIndex() - 1];
 
 				console.log('@musicSystem: song: ', song);
 
-				if (song && song.title === song.url) {
-					ytService.searchSongByName(song.title, song.songType).then((n) => {
+				if (song && song.getTitle() === song.getUrl()) {
+					ytService.searchSongByName(song.getTitle(), song.getType()).then((n) => {
 						song = n;
 						this._startMusic(n);
 					});
-				} else if (song && song.title !== song.url) {
+				} else if (song && song.getTitle() !== song.getUrl()) {
 					this._startMusic(song);
 				} else {
 					// serverQueue.client.queue.delete(serverQueue.guildId);
@@ -216,7 +219,9 @@ module.exports = class ServerQueue {
 				_buffering = true;
 				const bufferingMsg = _textChannel.send('*Processando...*');
 
-				_internalSongProperties = ytService.getInternalSongProperties(song.live);
+				_internalSongProperties = ytService.getInternalSongProperties(
+					song.getLive()
+				);
 
 				console.log('@_startMusic: song: ', song);
 				console.log(
@@ -224,7 +229,7 @@ module.exports = class ServerQueue {
 					_internalSongProperties
 				);
 
-				const stream = ytdl(song.url, {
+				const stream = ytdl(song.getUrl(), {
 					filter: _internalSongProperties.filter,
 					quality: _internalSongProperties.quality,
 					liveBuffer: 0,
@@ -239,10 +244,11 @@ module.exports = class ServerQueue {
 				setTimeout(() => {
 					const resource = createAudioResource(stream, {
 						metadata: {
-							title: song.title,
-							url: song.url,
-							author: song.author,
-							thumbnail: song.thumbnails[song.thumbnails.length - 1].url,
+							title: song.getTitle(),
+							url: song.getUrl(),
+							author: song.getAuthor(),
+							thumbnail: song.getLastThumbnailUrl(),
+							loopCount: _playlist.getLoopCount(),
 						},
 					});
 
@@ -256,7 +262,7 @@ module.exports = class ServerQueue {
 			},
 
 			prev: function () {
-				_playlist.playlistIndex -= 2;
+				_playlist.previous();
 				_player.stop();
 			},
 
@@ -269,16 +275,19 @@ module.exports = class ServerQueue {
 			},
 
 			stop: function () {
-				_playlist.songs = [];
+				_playlist.clearPlaylist();
 				_player.stop();
 				_connection.disconnect();
 				_connection.destroy();
 			},
 
 			clear: function () {
-				_playlist.playlistIndex = 0;
-				_playlist.songs = [];
+				_playlist.clearPlaylist();
 				_player.stop();
+			},
+
+			setLoop: function (enableLoop, loopType) {
+				_playlist.setLoopStatus(enableLoop, loopType);
 			},
 		};
 
@@ -290,48 +299,49 @@ module.exports = class ServerQueue {
 			_playlist = playlist;
 		};
 
-		this.playlist = {
-			addSong: function (url, type = 'video', interaction) {
-				ytService.getYtSong(url, type).then((res) => {
-					if (res.length > 1) {
-						_playlist.songs.push(...res);
-						_playlist.playlistTitle = res[0].plTitle;
+		this.addSong = (url, interaction, type = 'video') => {
+			ytService.getYtSong(url, type).then((res) => {
+				if (res.length > 1) {
+					_playlist.addSongs(res);
+					_playlist.setPlaylistTitle(res[0].plTitle);
 
-						const emb = embedBuilder.messageEmbed.songAdd(
-							_hexColor,
-							`Foram adicionadas **${res.length}** músicas à lista de REPRODUÇÃO`,
-							interaction.user.username
-						);
+					const emb = embedBuilder.messageEmbed.songAdd(
+						_hexColor,
+						`Playlist ${_playlist.getPlaylistTitle()}`,
+						interaction.user.username,
+						`Foram adicionadas **${res.length}** músicas à lista de REPRODUÇÃO`
+					);
 
-						_textChannel.send({ embeds: [emb] });
-					} else {
-						_playlist.songs.push(res);
-						const emb = embedBuilder.messageEmbed.songAdd(
-							_hexColor,
-							`**${res.title}**\nfoi adicionada à lista de REPRODUÇÃO`,
-							interaction.user.username
-						);
+					_textChannel.send({ embeds: [emb] });
+					this.musicSystem.play();
+				} else {
+					_playlist.addSong(res);
+					const emb = embedBuilder.messageEmbed.songAdd(
+						_hexColor,
+						`**${res.title}**\nfoi adicionada à lista de REPRODUÇÃO`,
+						interaction.user.username
+					);
 
-						_textChannel.send({ embeds: [emb] });
-					}
-				});
-			},
+					_textChannel.send({ embeds: [emb] });
+					this.musicSystem.play();
+				}
+			});
+		};
 
-			setTitle: function (title) {
-				_playlist.setPlaylistTitle(title);
-			},
+		this.setTitle = (title) => {
+			_playlist.setPlaylistTitle(title);
+		};
 
-			getTitle: function () {
-				return _playlist.getPlaylistTitle();
-			},
+		this.getTitle = () => {
+			return _playlist.getPlaylistTitle();
+		};
 
-			getAllSongs: function () {
-				return _playlist.getSongs;
-			},
+		this.getAllSongs = () => {
+			return _playlist.getSongs();
+		};
 
-			getSongByIndex: function (index) {
-				return _playlist.getSong(index);
-			},
+		this.getSongByIndex = (index) => {
+			return _playlist.getSong(index);
 		};
 
 		this.setPlaying = function (playing) {
