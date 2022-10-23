@@ -1,6 +1,6 @@
 {
   "name": "relive",
-  "version": "0.6.0-SNAPSHOT",
+  "version": "0.7.0-beta",
   "description": "Bot de música básico",
   "main": "index.js",
   "scripts": {
@@ -13,7 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@discordjs/builders": "^0.14.0",
-    "@discordjs/opus": "^0.7.0",
+    "@discordjs/opus": "^0.9.0",
     "@discordjs/rest": "^0.5.0",
     "@discordjs/voice": "^0.10.0",
     "discord-api-types": "^0.33.3",
@@ -24,7 +24,7 @@
     "spotify-url-info": "^3.1.2",
     "youtube-sr": "^4.1.17",
     "yt-search": "^2.10.3",
-    "ytdl-core": "^4.11.0",
+    "ytdl-core": "^4.11.2",
     "ytpl": "^2.3.0"
   },
   "devDependencies": {

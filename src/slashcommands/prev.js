@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 // eslint-disable-next-line no-unused-vars
-const ServerQueue = require('../../entity/ServerQueue');
+const ServerQueue = require('../classes/ServerQueue');
 module.exports = {
 	data: new SlashCommandBuilder().setName('prev').setDescription('Voltar música!'),
 	async execute(interaction) {

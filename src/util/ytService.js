@@ -2,7 +2,7 @@
 const ytdl = require('ytdl-core');
 const ytpl = require('ytpl');
 const ytSearch = require('yt-search');
-const Song = require('../../entity/Song');
+const Song = require('../classes/Song');
 
 let newSong;
 let newUrl;
