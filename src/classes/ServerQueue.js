@@ -18,9 +18,9 @@ const {
 	TextBasedChannels,
 	MessageEmbed,
 } = require('discord.js');
-const ytService = require('../src/util/ytService');
+const ytService = require('../util/ytService');
 const Playlist = require('./Playlist');
-const embedBuilder = require('../src/util/embed');
+const embedBuilder = require('../util/embed');
 const ytdl = require('ytdl-core');
 
 /**
